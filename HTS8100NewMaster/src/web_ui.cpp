@@ -5,8 +5,12 @@
 #include "constants.h"
 #include "settings.h"
 #include "i2c_controller.h"
+#include "audio_signal_detector.h"
 #include "dbg_msg_macro.h"
+#include "timer.h"
 
+
+void start_signal_detector(HTSNewMaster::audio_signal_detector &sd, const HTSNewMaster::eeprom_data::signal_detector &data);
 
 namespace HTSNewMaster
 {
@@ -100,14 +104,15 @@ namespace HTSNewMaster
         return -1;
     }
 
-
-    void UI::begin(eeprom_data *settings, i2c_controller *controller, const char* title, const char* username, const char* password, uint16_t port)
+    void UI::begin(eeprom_data *settings, audio_signal_detector *AUX_1, audio_signal_detector *AUX_2, i2c_controller *controller, const char* title, const char* username, const char* password, uint16_t port)
     {
         m_ptr_settings = settings;
         m_ptr_controller = controller;
+        m_ptr_AUX1 = AUX_1;
+        m_ptr_AUX2 = AUX_2;
 
         build_ui();
-        ESPUI.jsonInitialDocumentSize = 11000;
+        ESPUI.jsonInitialDocumentSize = 18000;
         ESPUI.begin(title, username, password, port);
     }
 
@@ -116,26 +121,68 @@ namespace HTSNewMaster
         m_time = time;
     }
 
-    void UI::disable_input()
+    void UI::set_input(eeprom_data::EInput input)
     {
-        int idx = get_index(inputs, sizeof(inputs)/sizeof(inputs[0]), eeprom_data::EInput::iDisabled);
+        int idx = get_index(inputs, sizeof(inputs)/sizeof(inputs[0]), input);
         ESPUI.getControl(ctrl_input_selector)->value = inputs[idx].first;
         ESPUI.updateControl(ESPUI.getControl(ctrl_input_selector));
     }
 
-    void UI::update()
+    void UI::set_AUX1_tolerance(uint16_t tolerance)
     {
+        String value = WEB_UI_SIGNAL_TOLERANCE;
+        value += tolerance;
+
+        ESPUI.getControl(ctrl_tolerance_AUX_12[0])->value = value;
+        ESPUI.updateControl(ESPUI.getControl(ctrl_tolerance_AUX_12[0]));
+
+    }
+
+    void UI::set_AUX2_tolerance(uint16_t tolerance)
+    {
+        String value = WEB_UI_SIGNAL_TOLERANCE;
+        value += tolerance;
+
+        ESPUI.getControl(ctrl_tolerance_AUX_12[1])->value = value;
+        ESPUI.updateControl(ESPUI.getControl(ctrl_tolerance_AUX_12[1]));
+    }
+
+    void UI::update_status()
+    {
+        //Time
         char strftime_buf[64];
         struct tm timeinfo;
         localtime_r(&m_time, &timeinfo);
         strftime(strftime_buf, sizeof(strftime_buf), "%F %T", &timeinfo);
-        m_str_time = strftime_buf;
+
+        String time = strftime_buf;
+        String input;
+
+        int idx = get_index(inputs, sizeof(inputs)/sizeof(inputs[0]), m_ptr_settings->get_input());
+        input = inputs[idx].first;
+
+        m_str_time = 
+        "<style>"
+        "table, th, td {"
+            "border:0px solid black;"
+            "text-align: left;"
+        "}"
+        "</style>"
+        "<table>"
+        "<tr>"
+            "<td>Time: </td>"
+            "<td>" + time + "</td>"
+        "</tr>"
+        "<tr>"
+            "<td>Active input: </td>"
+            "<td>" + input + "</td>"
+        "</tr>"
+        "</table>";
 
         //ESPUI.ui_title = m_str_time.c_str();
 
         ESPUI.updateControlValue(ctrl_status, m_str_time.c_str());
     }
-
 
     void UI::build_ui()
     {
@@ -329,6 +376,7 @@ namespace HTSNewMaster
                 int idx = get_index(inputs, sizeof(inputs)/sizeof(inputs[0]), sender->value);
                 m_ptr_settings->set_input(inputs[idx].second);
                 m_ptr_controller->input_set(m_ptr_settings->get_input());
+                update_status();
             }, this);
         cIdx = -1;
         for(int n = 0; n < sizeof(inputs)/sizeof(inputs[0]); ++n)
@@ -348,26 +396,6 @@ namespace HTSNewMaster
             }, this);
             ESPUI.addControl(ControlType::Min, WEB_UI_ASYNC, String(WEB_UI_ASYNC_MIN), ControlColor::None, ctrl_audio_sync);
             ESPUI.addControl(ControlType::Max, WEB_UI_ASYNC, String(WEB_UI_ASYNC_MAX), ControlColor::None, ctrl_audio_sync);
-
-        ctrl_input_off_timer_from = ESPUI.addControl(ControlType::Text, WEB_UI_INP_DIS_TT, "", ControlColor::Turquoise, ctrl_tab_input,
-            [this](Control *sender, int, void*) {
-                m_ptr_settings->set_disable_input_from(ESPUI.getControl(ctrl_input_off_timer_from)->value);
-            }, this);
-        ESPUI.setInputType(ctrl_input_off_timer_from, "time");
-        ESPUI.updateControlValue(ctrl_input_off_timer_from, m_ptr_settings->get_disable_input_from());
-
-        ctrl_input_off_timer_to = ESPUI.addControl(ControlType::Text, WEB_UI_INP_DIS_TT, "", ControlColor::Turquoise, ctrl_input_off_timer_from,
-            [this](Control *sender, int, void*) {
-                m_ptr_settings->set_disable_input_to(ESPUI.getControl(ctrl_input_off_timer_to)->value);
-            }, this);
-        ESPUI.setInputType(ctrl_input_off_timer_to, "time");
-        ESPUI.updateControlValue(ctrl_input_off_timer_to, m_ptr_settings->get_disable_input_to());
-
-        ctrl_input_off_switch = ESPUI.addControl(ControlType::Switcher, WEB_UI_INP_DISABLE, "", ControlColor::Turquoise, ctrl_input_off_timer_from,
-            [this](Control*, int value, void*) {
-                m_ptr_settings->set_disable_input_active(S_ACTIVE == value ? true : false);
-            }, this);
-        ESPUI.updateControlValue(ctrl_input_off_switch, m_ptr_settings->get_disable_input_active() ? "1" : "0");
 
         //-------------------------------------------------------------------------------------------------------------------
         // Settings
@@ -409,17 +437,265 @@ namespace HTSNewMaster
             [](Control*, int type, void*) {
                 if(B_UP == type) {
                     digitalWrite(BT_UNPAIR_PIN, HIGH);
-                    delay(500);
+                    delay(800);
                     digitalWrite(BT_UNPAIR_PIN, LOW);
                 }
             }, this);
+
+        //...
+
+        for(int n = 0; n < 2; ++n)
+        {
+            using EDPriority = eeprom_data::EDPriority;
+
+            EDPriority sd { 0 == n ? EDPriority::pAUX1 : EDPriority::pAUX2 };
+            //...............................................................
+            // Audio Detector AUX x
+            //...............................................................
+
+            std::function<const eeprom_data::signal_detector &()> get_data { EDPriority::pAUX1 == sd
+                ? std::bind(&eeprom_data::get_AUX_1, m_ptr_settings)
+                : std::bind(&eeprom_data::get_AUX_2, m_ptr_settings) };
+
+            std::function<void(const eeprom_data::signal_detector &)> set_data {EDPriority::pAUX1 == sd
+                ? std::bind(&eeprom_data::set_AUX_1, m_ptr_settings, std::placeholders::_1)
+                : std::bind(&eeprom_data::set_AUX_2, m_ptr_settings, std::placeholders::_1) };
+
+            int group_ag_aux = ESPUI.addControl(ControlType::Switcher
+                , EDPriority::pAUX1 == sd ? WEB_UI_AD_AUX1 : WEB_UI_AD_AUX2, ""
+                , EDPriority::pAUX1 == sd ? ControlColor::Peterriver : ControlColor::Turquoise, ctrl_tab_settings
+                , [this, get_data, set_data, sd](Control*, int value, void*) {
+                    auto ads = get_data();
+                    ads.enabled = S_ACTIVE == value;
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.updateControlValue(group_ag_aux, get_data().enabled ? "1" : "0");
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_AD_ENABLED, None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            int ctrl_slider_sig_timeout = ESPUI.addControl(ControlType::Slider, "", String(get_data().signal_timeout_s), ControlColor::None, group_ag_aux
+                , [this, get_data, set_data, sd](Control *sender, int type, void*)  {
+                    auto ads = get_data();
+                    ads.signal_timeout_s = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.addControl(ControlType::Min, "", String(WEB_UI_SIG_TIMEOUT_MIN), ControlColor::None, ctrl_slider_sig_timeout);
+            ESPUI.addControl(ControlType::Max, "", String(WEB_UI_SIG_TIMEOUT_MAX), ControlColor::None, ctrl_slider_sig_timeout);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_SIG_TIMEOUT, ControlColor::None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            int ctrl_slider_sil_timeout = ESPUI.addControl(ControlType::Slider, "", String(get_data().silience_timeout_s), ControlColor::None, group_ag_aux
+                , [this, get_data, set_data, sd](Control *sender, int type, void*) 
+                {
+                    auto ads = get_data();
+                    ads.silience_timeout_s = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.addControl(ControlType::Min, "", String(WEB_UI_SIL_TIMEOUT_MIN), ControlColor::None, ctrl_slider_sil_timeout);
+            ESPUI.addControl(ControlType::Max, "", String(WEB_UI_SIL_TIMEOUT_MAX), ControlColor::None, ctrl_slider_sil_timeout);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_SIL_TIMEOUT, ControlColor::None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            int ctrl_zero_level = ESPUI.addControl(ControlType::Text, "", String(get_data().zero_level), ControlColor::None, group_ag_aux
+                , [this, get_data, set_data, sd](Control *sender, int type, void*) 
+                {
+                    auto ads = get_data();
+                    ads.zero_level = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_ZERO_LEVEL, ControlColor::None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            ESPUI.addControl(ControlType::Button, "", WEB_UI_CALIBRATE_ZERO_LEVEL, ControlColor::None, group_ag_aux
+                , [this, sd, ctrl_zero_level](Control*, int, void*) 
+                {
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                        {
+                            m_ptr_AUX1->silience_calibrate(tools::timer::sec_to_msec(10), [this, ctrl_zero_level](uint16_t sig)
+                                {
+                                    ESPUI.updateControlValue(ctrl_zero_level, String(sig));
+                                    
+                                    auto ads = m_ptr_settings->get_AUX_1();
+                                    ads.zero_level = sig;
+                                    m_ptr_settings->set_AUX_1(ads);
+
+                                    start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                                });
+                        } break;
+
+                        case EDPriority::pAUX2:
+                        {
+                            m_ptr_AUX2->silience_calibrate(tools::timer::sec_to_msec(10), [this, ctrl_zero_level](uint16_t sig)
+                                {
+                                    ESPUI.updateControlValue(ctrl_zero_level, String(sig));
+
+                                    auto ads = m_ptr_settings->get_AUX_2();
+                                    ads.zero_level = sig;
+                                    m_ptr_settings->set_AUX_2(ads);
+
+                                    start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                                });
+                        } break;
+                    }
+                }, this);
+
+            auto ctrl_slider_sensivity = ESPUI.addControl(ControlType::Slider, "", String(get_data().sensivity), ControlColor::None, group_ag_aux
+                , [this, get_data, set_data, sd](Control *sender, int type, void*) 
+                {
+                    auto ads = get_data();
+                    ads.sensivity = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.addControl(ControlType::Min, "", String(WEB_UI_SENSITIVITY_MIN), ControlColor::None, ctrl_slider_sensivity);
+            ESPUI.addControl(ControlType::Max, "", String(WEB_UI_SENSITIVITY_MAX), ControlColor::None, ctrl_slider_sensivity);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_SENSITIVITY, ControlColor::None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            auto ctrl_slider_sig_tolerance = ESPUI.addControl(ControlType::Slider, "", String(get_data().signal_tolerance_precent), ControlColor::None, group_ag_aux
+                , [this, get_data, set_data, sd](Control *sender, int type, void*) 
+                {
+                    auto ads = get_data();
+                    ads.signal_tolerance_precent = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.addControl(ControlType::Min, "", String(WEB_UI_TOLERANCE_MIN), ControlColor::None, ctrl_slider_sig_tolerance);
+            ESPUI.addControl(ControlType::Max, "", String(WEB_UI_TOLERANCE_MAX), ControlColor::None, ctrl_slider_sig_tolerance);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_TOLERANCE, ControlColor::None, group_ag_aux),  "background-color: unset; width: 100%;");
+
+            int ctrl_slider_measure_interval = ESPUI.addControl(ControlType::Slider, "", String(get_data().measure_interval_ms), ControlColor::None, group_ag_aux, 
+                [this, get_data, set_data, sd](Control *sender, int type, void*) 
+                {
+                    auto ads = get_data();
+                    ads.measure_interval_ms = sender->value.toInt();
+                    set_data(ads);
+
+                    switch(sd)
+                    {
+                        case EDPriority::pAUX1:
+                            start_signal_detector(*m_ptr_AUX1, m_ptr_settings->get_AUX_1());
+                            break;
+
+                        case EDPriority::pAUX2:
+                            start_signal_detector(*m_ptr_AUX2, m_ptr_settings->get_AUX_2());
+                            break;
+                    }
+                }, this);
+            ESPUI.addControl(ControlType::Min, "", String(WEB_UI_MEASURE_INTERVAL_MIN), ControlColor::None, ctrl_slider_measure_interval);
+            ESPUI.addControl(ControlType::Max, "", String(WEB_UI_MEASURE_INTERVAL_MAX), ControlColor::None, ctrl_slider_measure_interval);
+            ESPUI.setElementStyle(ESPUI.addControl(Label, "", WEB_UI_MEASURE_INTERVAL, ControlColor::None, group_ag_aux), "background-color: unset; width: 100%;");
+            
+            int ctrl_id = ESPUI.addControl(Label, "", WEB_UI_SIGNAL_TOLERANCE, ControlColor::None, group_ag_aux);
+            ESPUI.setElementStyle(ctrl_id, "background-color: unset; width: 100%;");
+
+            switch(sd)
+            {
+                case EDPriority::pAUX1:
+                    ctrl_tolerance_AUX_12[0] = ctrl_id;
+                    break;
+
+                case EDPriority::pAUX2:
+                    ctrl_tolerance_AUX_12[1] = ctrl_id;
+                    break;
+            }           
+        
+        } // for
+
+        ESPUI.addControl(ControlType::Switcher, WEB_UI_SD_PRIORITY, String((int)m_ptr_settings->get_signal_detector_priority()), ControlColor::Wetasphalt, ctrl_tab_settings
+                , [this](Control*, int value, void*) {
+                    m_ptr_settings->set_signal_detector_priority(S_ACTIVE == value ? eeprom_data::EDPriority::pAUX2 : eeprom_data::EDPriority::pAUX1);
+                }, this);
+
+       ctrl_input_off_timer_from = ESPUI.addControl(ControlType::Text, WEB_UI_INP_DIS_TT, "", ControlColor::Turquoise, ctrl_tab_settings,
+            [this](Control *sender, int, void*) {
+                m_ptr_settings->set_disable_input_from(ESPUI.getControl(ctrl_input_off_timer_from)->value);
+            }, this);
+        ESPUI.setInputType(ctrl_input_off_timer_from, "time");
+        ESPUI.updateControlValue(ctrl_input_off_timer_from, m_ptr_settings->get_disable_input_from());
+
+        ctrl_input_off_timer_to = ESPUI.addControl(ControlType::Text, WEB_UI_INP_DIS_TT, "", ControlColor::Turquoise, ctrl_input_off_timer_from,
+            [this](Control *sender, int, void*) {
+                m_ptr_settings->set_disable_input_to(ESPUI.getControl(ctrl_input_off_timer_to)->value);
+            }, this);
+        ESPUI.setInputType(ctrl_input_off_timer_to, "time");
+        ESPUI.updateControlValue(ctrl_input_off_timer_to, m_ptr_settings->get_disable_input_to());
+
+        ctrl_input_off_switch = ESPUI.addControl(ControlType::Switcher, WEB_UI_INP_DISABLE, "", ControlColor::Turquoise, ctrl_input_off_timer_from,
+            [this](Control*, int value, void*) {
+                m_ptr_settings->set_disable_input_active(S_ACTIVE == value ? true : false);
+            }, this);
+        ESPUI.updateControlValue(ctrl_input_off_switch, m_ptr_settings->get_disable_input_active() ? "1" : "0");
+
+        //...
         
         ctrl_i2c_test = ESPUI.addControl(ControlType::Text, WEB_UI_I2C_TEST, "C:00000000,D:00000000", ControlColor::Emerald, ctrl_tab_settings,
             [](Control*, int type, void*) {
                 
             }, this);
 
-        ctrl_i2c_test_send = ESPUI.addControl(ControlType::Button, WEB_UI_I2C_TEST_SND, WEB_UI_I2C_TEST_SND, ControlColor::Carrot, ctrl_i2c_test,
+        ctrl_i2c_test_send = ESPUI.addControl(ControlType::Button, WEB_UI_I2C_TEST_SND, WEB_UI_I2C_TEST_SND, ControlColor::Sunflower, ctrl_i2c_test,
             [this](Control*, int type, void*) {
                 if(B_UP == type) 
                 {
@@ -492,6 +768,5 @@ namespace HTSNewMaster
                     ESP.restart();
                 }
             }, this);
-        
     }
 }

@@ -31,6 +31,28 @@ namespace HTSNewMaster
         DBGNL(DBG_DEBUG, ("Disable Input To: %s")(data.disable_input_to));
         DBGNL(DBG_DEBUG, ("Disable Input: %d")(data.disable_input_active));
 
+        const signal_detector * p_sd = nullptr;
+        for(int n = 0; n < 2; ++n)
+        {
+            switch(n)
+            {
+                case 0: p_sd = &data.AUX_1; break;
+                case 1: p_sd = &data.AUX_2; break;
+            }
+
+            DBGNL(DBG_DEBUG, ("............................................."));
+            DBGNL(DBG_DEBUG, ("AUX%d, Enabled: %d")(n+1)(p_sd->enabled));
+            DBGNL(DBG_DEBUG, ("AUX%d, Signal Timeout: %d s")(n+1)(p_sd->signal_timeout_s));
+            DBGNL(DBG_DEBUG, ("AUX%d, Silience Timeout: %d s")(n+1)(p_sd->silience_timeout_s));
+            DBGNL(DBG_DEBUG, ("AUX%d, Zero Level: %d")(n+1)(p_sd->zero_level));
+            DBGNL(DBG_DEBUG, ("AUX%d, Sensivity: %d")(n+1)(p_sd->sensivity));
+            DBGNL(DBG_DEBUG, ("AUX%d, Signal Tolerance: %d %")(n+1)(p_sd->signal_tolerance_precent));
+            DBGNL(DBG_DEBUG, ("AUX%d, Measure Interval: %d ms")(n+1)(p_sd->measure_interval_ms));
+            DBGNL(DBG_DEBUG, ("............................................."));
+        }
+
+        DBGNL(DBG_DEBUG, ("Signal Detector Priority: %s")(enum_to_string(data.m_signal_detector_priority)));
+
         DBGNL(DBG_DEBUG, ("---------------------------------------------"));
     }
 
@@ -87,6 +109,19 @@ namespace HTSNewMaster
         case EInput::iAUX1:
             return "AUX1";
         case EInput::iAUX2:
+            return "AUX2";
+        }
+
+        return "Unknown";
+    }
+
+    String eeprom_data::enum_to_string(EDPriority mode)
+    {
+        switch(mode)
+        {
+        case EDPriority::pAUX1:
+            return "AUX1";
+        case EDPriority::pAUX2:
             return "AUX2";
         }
 

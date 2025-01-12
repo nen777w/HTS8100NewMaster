@@ -21,6 +21,16 @@ namespace tools
         void start();
         void update();
 
+        inline static unsigned long  msec_to_sec(double msec)
+        {
+            return msec / 1000;
+        }
+
+        inline static unsigned long  sec_to_msec(double sec)
+        {
+            return sec * 1000;
+        }
+
     private:
         const unsigned long m_interval;
         unsigned long m_last_update;

@@ -28,11 +28,11 @@
 //controls
 #define WEB_UI_STATUS       "Status"
 
-#define WEB_UI_TAB_SOUND    "Sound"
-#define WEB_UI_TAB_EQ       "EQ"
-#define WEB_UI_TAB_RADIO    "Radio"
-#define WEB_UI_TAB_INPUT    "Input"
-#define WEB_UI_TAB_SETTINGS "Settings"
+#define WEB_UI_TAB_SOUND            "Sound"
+#define WEB_UI_TAB_EQ               "EQ"
+#define WEB_UI_TAB_RADIO            "Radio"
+#define WEB_UI_TAB_INPUT            "Input"
+#define WEB_UI_TAB_SETTINGS         "Settings"
 
 #define WEB_UI_VOLUME       "Volume"
 #define WEB_UI_VOLUME_MIN   0
@@ -57,7 +57,7 @@
 #define WEB_UI_EQ_MODE      "Eqializer presets"
 #define WEB_UI_INPUT_SEL    "Input selector"
 #define WEB_UI_ASYNC        "Audio Sync (ms)"
-#define WEB_UI_INP_DIS_TT   "Disable Input From <-> To"
+#define WEB_UI_INP_DIS_TT   "Disable Input's From <-> To"
 #define WEB_UI_INP_DISABLE  "Disable by timer"
 
 #define WEB_UI_ASYNC_MIN    0
@@ -74,7 +74,31 @@
 #define WEB_UI_NTP_ZONE     "NTP Zone"
 #define WEB_UI_RESCAN_ALL   "Rescan All"
 #define WEB_UI_NXT_PRESET   "  >  "   
-#define WEB_UI_PRV_PRESET   "  <  "   
+#define WEB_UI_PRV_PRESET   "  <  "
+
+#define WEB_UI_AD_AUX1              "Audio Detector: AUX1"
+#define WEB_UI_AD_AUX2              "Audio Detector: AUX2"
+#define WEB_UI_AD_ENABLED           "Enabled"
+#define WEB_UI_SIG_TIMEOUT          "Signal Timeout (sec)"
+#define WEB_UI_SIG_TIMEOUT_MIN      2
+#define WEB_UI_SIG_TIMEOUT_MAX      5
+#define WEB_UI_SIL_TIMEOUT          "Silience Timeout (sec)"
+#define WEB_UI_SIL_TIMEOUT_MIN      5
+#define WEB_UI_SIL_TIMEOUT_MAX      240
+#define WEB_UI_ZERO_LEVEL           "Zero Level (samples 0 - 4095)"
+#define WEB_UI_CALIBRATE_ZERO_LEVEL "Calibrate Zero Level"
+#define WEB_UI_SENSITIVITY          "Signal Sensivity from zero level (samples)"
+#define WEB_UI_SENSITIVITY_MIN      10
+#define WEB_UI_SENSITIVITY_MAX      35
+#define WEB_UI_TOLERANCE            "Signal Tolerance (%)"
+#define WEB_UI_TOLERANCE_MIN        10
+#define WEB_UI_TOLERANCE_MAX        60
+#define WEB_UI_MEASURE_INTERVAL     "Measure Interval (msec)"
+#define WEB_UI_MEASURE_INTERVAL_MIN 10
+#define WEB_UI_MEASURE_INTERVAL_MAX 100
+#define WEB_UI_SIGNAL_TOLERANCE     "Signal tolerance: "
+
+#define WEB_UI_SD_PRIORITY          "Audio Detector Priority: AUX1 / AUX2"
 
 //I2C Controller
 #define I2C_MASTER_ADDRES   0x7C
@@ -82,6 +106,12 @@
 #define I2C_SCL_PIN         22
 #define I2C_SPEED           100000
 #define BT_UNPAIR_PIN       16
+
+//Signal detector
+#define ANALOG_PIN_MIN     0
+#define ANALOG_PIN_MAX     4095
+#define SD_AUX1_PIN        36
+#define SD_AUX2_PIN        34
 
 
 #endif

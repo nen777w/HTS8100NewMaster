@@ -8,7 +8,7 @@
 
 namespace HTSNewMaster
 {
-    const byte current_version = 4;
+    const byte current_version = 7;
     const int EEPROM_BUF_SIZE = 1024;
 
     struct eeprom_data;
@@ -19,6 +19,17 @@ namespace HTSNewMaster
 
     struct eeprom_data
     {
+        struct signal_detector
+        {
+            bool enabled;
+            unsigned long signal_timeout_s;
+            unsigned long silience_timeout_s;
+            uint16_t zero_level;
+            uint16_t sensivity;
+            uint16_t signal_tolerance_precent;
+            unsigned long measure_interval_ms;
+        };
+
         enum class ESoundMode : byte { 
               smAutoStereo = 0b00000001
             , smMultiCh = 0b00000010
@@ -41,11 +52,15 @@ namespace HTSNewMaster
           , iAUX1 = 0b00000100
           , iAUX2 = 0b00000101
         };
+        enum class EDPriority : byte {
+            pAUX1 = 0, pAUX2 = 1
+        };
 
         static void print(const eeprom_data& data);
         static String enum_to_string(ESoundMode mode);
         static String enum_to_string(EEQMode mode);
         static String enum_to_string(EInput mode);
+        static String enum_to_string(EDPriority mode);
 
     private:
         char wifi_ap[25] = {'\0'};
@@ -70,6 +85,28 @@ namespace HTSNewMaster
         char disable_input_from[6] = {"01:00"};
         char disable_input_to[6] = {"06:00"};
         byte disable_input_active = 0;
+
+        signal_detector AUX_1 {
+              .enabled = true
+            , .signal_timeout_s = 2
+            , .silience_timeout_s = 35
+            , .zero_level = 1864
+            , .sensivity = 15
+            , .signal_tolerance_precent = 17
+            , .measure_interval_ms = 10
+        };
+
+        signal_detector AUX_2 {
+              .enabled = true
+            , .signal_timeout_s = 2
+            , .silience_timeout_s = 35
+            , .zero_level = 1864
+            , .sensivity = 15
+            , .signal_tolerance_precent = 17
+            , .measure_interval_ms = 10
+        };
+        
+        EDPriority m_signal_detector_priority = EDPriority::pAUX1;
     
     public:
         const char* get_wifi_ap() const { return wifi_ap; }
@@ -162,19 +199,53 @@ namespace HTSNewMaster
           set_eeprom_data_dirty();
         }
 
-        std::tuple<int, int> get_disable_input_from_tpl()
+        std::tuple<int, int> get_disable_input_from_tpl() const
         {
             int h = (disable_input_from[1] - '0') + (disable_input_from[0] - '0') * 10;
             int m = (disable_input_from[4] - '0') + (disable_input_from[3] - '0') * 10;
             return {h, m};
         }
 
-        std::tuple<int, int> get_disable_input_to_tpl()
+        std::tuple<int, int> get_disable_input_to_tpl() const
         {
             int h = (disable_input_to[1] - '0') + (disable_input_to[0] - '0') * 10;
             int m = (disable_input_to[4] - '0') + (disable_input_to[3] - '0') * 10;
             return {h, m};
         }
+
+        const signal_detector & get_AUX_1() const
+        {
+            return AUX_1;
+        }
+
+        void set_AUX_1(const signal_detector & data)
+        {
+            AUX_1 = data;
+            set_eeprom_data_dirty();
+        }
+
+        const signal_detector & get_AUX_2() const
+        {
+            return AUX_2;
+        }
+
+        void set_AUX_2(const signal_detector & data)
+        {
+            AUX_2 = data;
+            set_eeprom_data_dirty();
+        }
+
+        EDPriority get_signal_detector_priority() const 
+        {
+            return m_signal_detector_priority;
+        }
+
+        void set_signal_detector_priority(EDPriority priority)
+        {
+            m_signal_detector_priority = priority;
+            set_eeprom_data_dirty();
+        }
+        
     };
 }
 
