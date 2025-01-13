@@ -1,5 +1,4 @@
-# Alternative firmware for Philips HTS 8100/12 (and similar Philips HTS devices) 
-# for ESP32
+# Alternative firmware for Philips HTS 8100/12 (and similar Philips HTS devices) for ESP32
 
 ## Montage on HTS8100.
 ![Montage](doc/img/20250112_203107.jpg)
