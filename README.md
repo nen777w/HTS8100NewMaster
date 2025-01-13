@@ -2,17 +2,17 @@
 # for ESP32
 
 ## Montage on HTS8100.
-![Montage](doc/20250112_203107.jpg)
+![Montage](doc/img/20250112_203107.jpg)
 
 ## HTS8100 modifications
-![HTS8100 modifications](doc/HTS8100_modifications.png)
+![HTS8100 modifications](doc/img/HTS8100_modifications.png)
 
 ## ESP32-WROOM32 board
-![ESP32 board](doc/ESP32-WROOM32-scheme.png)
+![ESP32 board](doc/img/ESP32-WROOM32-scheme.png)
 
 ## Web UI
-![Page Sound](doc/WebUI_0.png)
-![Page EQ](doc/WebUI_1.png)
-![Page Radio](doc/WebUI_2.png)
-![Page Inputs](doc/WebUI_3.png)
-![Page Settings](doc/WebUI_4.png)
+![Page Sound](doc/img/WebUI_0.png)
+![Page EQ](doc/img/WebUI_1.png)
+![Page Radio](doc/img/WebUI_2.png)
+![Page Inputs](doc/img/WebUI_3.png)
+![Page Settings](doc/img/WebUI_4.png)
