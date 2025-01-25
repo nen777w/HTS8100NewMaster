@@ -27,6 +27,9 @@ namespace HTSNewMaster
         void set_AUX1_tolerance(uint16_t tolerance);
         void set_AUX2_tolerance(uint16_t tolerance);
 
+        void incrase_triggers_counter_AUX1();
+        void incrase_triggers_counter_AUX2();
+
     private:
         void build_ui();
 
@@ -84,6 +87,10 @@ namespace HTSNewMaster
         int ctrl_ntp_zone;
 
         int ctrl_tolerance_AUX_12[2];
+        int ctrl_triggers_AUX_12[2][2] = {
+             {0, 0}
+            ,{0, 0}
+        };
     };
 }
 

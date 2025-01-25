@@ -79,6 +79,8 @@ HTSNewMaster::audio_signal_detector sd_AUX1(
             using EDPriority = HTSNewMaster::eeprom_data::EDPriority;
 
             try_input_change(EDPriority::pAUX1, EInput::iAUX1);
+
+            HTSNewMaster::UI::get().incrase_triggers_counter_AUX1();
         }
     , [&]()
         {
@@ -112,6 +114,8 @@ HTSNewMaster::audio_signal_detector sd_AUX2(
             using EDPriority = HTSNewMaster::eeprom_data::EDPriority;
 
             try_input_change(EDPriority::pAUX2, EInput::iAUX2);
+
+            HTSNewMaster::UI::get().incrase_triggers_counter_AUX2();
         }
     , [&]()
         {

@@ -147,6 +147,24 @@ namespace HTSNewMaster
         ESPUI.updateControl(ESPUI.getControl(ctrl_tolerance_AUX_12[1]));
     }
 
+    void UI::incrase_triggers_counter_AUX1()
+    {
+        String value = WEB_UI_TRIGGERS_COUNTER;
+        value += ++ctrl_triggers_AUX_12[0][1];
+
+        ESPUI.getControl(ctrl_triggers_AUX_12[0][0])->value = value;
+        ESPUI.updateControl(ESPUI.getControl(ctrl_triggers_AUX_12[0][0]));
+    }
+
+    void UI::incrase_triggers_counter_AUX2()
+    {
+        String value = WEB_UI_TRIGGERS_COUNTER;
+        value += ++ctrl_triggers_AUX_12[1][1];
+
+        ESPUI.getControl(ctrl_triggers_AUX_12[1][0])->value = value;
+        ESPUI.updateControl(ESPUI.getControl(ctrl_triggers_AUX_12[1][0]));
+    }
+
     void UI::update_status()
     {
         //Time
@@ -659,7 +677,21 @@ namespace HTSNewMaster
                 case EDPriority::pAUX2:
                     ctrl_tolerance_AUX_12[1] = ctrl_id;
                     break;
-            }           
+            }
+
+            ctrl_id = ESPUI.addControl(Label, "", WEB_UI_TRIGGERS_COUNTER, ControlColor::None, group_ag_aux);
+            ESPUI.setElementStyle(ctrl_id, "background-color: unset; width: 100%;");
+
+            switch(sd)
+            {
+                case EDPriority::pAUX1:
+                    ctrl_triggers_AUX_12[0][0] = ctrl_id;
+                    break;
+
+                case EDPriority::pAUX2:
+                    ctrl_triggers_AUX_12[1][0] = ctrl_id;
+                    break;
+            }
         
         } // for
 

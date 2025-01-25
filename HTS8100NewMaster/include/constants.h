@@ -97,6 +97,7 @@
 #define WEB_UI_MEASURE_INTERVAL_MIN 10
 #define WEB_UI_MEASURE_INTERVAL_MAX 100
 #define WEB_UI_SIGNAL_TOLERANCE     "Signal tolerance: "
+#define WEB_UI_TRIGGERS_COUNTER     "Triggers counter: "
 
 #define WEB_UI_SD_PRIORITY          "Audio Detector Priority: AUX1 / AUX2"
 
