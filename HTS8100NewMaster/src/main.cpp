@@ -36,6 +36,7 @@ WiFiUDP ntpUDP;
 NTPClient time_client(ntpUDP);
 //timer
 tools::timer clock_timer(CLOCK_UPDATE_INTERVAL);
+tools::timer startup_sound_off_timer(tools::timer::sec_to_msec(STARTUP_SOUND_OFF_TIMER));
 
 //............................................................
 //AUDIO DETECTORS.............................................
@@ -359,6 +360,19 @@ void setup()
   );
   clock_timer.start();
 
+  startup_sound_off_timer.set_callback(
+    [](void*)
+    {
+      static bool once = false;
+      if(!once) {
+        using namespace HTSNewMaster;
+        set_active_input(eeprom_data::EInput::iDisabled);
+        once = true;
+      }
+    }, nullptr
+  );
+  startup_sound_off_timer.start();
+
   start_signal_detector(sd_AUX1, settings.get_AUX_1());
   start_signal_detector(sd_AUX2, settings.get_AUX_2());
   
@@ -382,6 +396,7 @@ void loop()
 
   time_client.update();
   clock_timer.update();
+  startup_sound_off_timer.update();
 
   sd_AUX1.update();
   sd_AUX2.update();
